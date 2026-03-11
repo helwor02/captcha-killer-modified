@@ -50,76 +50,73 @@ public class BurpExtender implements IBurpExtender, ITab, IIntruderPayloadGenera
         stdout.println(Util.getBanner(this.extensionName, this.version));
     }
 
+
+    private void refreshCaptchaBeforeAttack() {
+        try {
+            stdout.println("[captcha-killer-modified] refreshing captcha before attack request");
+            GUI.GetCaptchaThread thread = new GUI.GetCaptchaThread(gui.tfURL.getText(), gui.taRequest.getText());
+            thread.start();
+            thread.join(5000);
+            if (gui.byteImg == null) {
+                stdout.println("[captcha-killer-modified] refresh finished but captcha image is null");
+            } else {
+                stdout.println("[captcha-killer-modified] refresh finished, captcha bytes=" + gui.byteImg.length);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            stderr.println("[captcha-killer-modified] refresh interrupted: " + e.getMessage());
+        }
+    }
+
     @Override // burp.IHttpListener
     public void processHttpMessage(int toolFlag, boolean messageIsRequest, IHttpRequestResponse messageInfo) {
         if (!(toolFlag == 4 || toolFlag == 32 || toolFlag == 64)) {
             return;
-        }else if ( toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER || toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER) {
+        } else if (toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER || toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER) {
             if (messageIsRequest) {
                 byte[] request = messageInfo.getRequest();
                 IRequestInfo iRequestInfo = helpers.analyzeRequest(messageInfo);
                 List<String> headersList = iRequestInfo.getHeaders();
                 int bodyOffset = iRequestInfo.getBodyOffset();
                 byte[] body = Arrays.copyOfRange(request, bodyOffset, request.length);
+                String bodyStr = new String(body);
 
-//                String cap = "";
-//                stdout.println(headersList.contains("@captcha-killer-modified@"));
-//                stdout.println(headersList);
-//                stdout.println(new String(body));
-                if ( (headersList.get(0).contains("@captcha@") || new String(body).contains("@captcha@") || (  (toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER ) && headersList.get(0).contains("@captcha-killer-modified@")  ) || ((toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER ) && new String(body).contains("@captcha-killer-modified@") ) || ( toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER )) && gui.getUsebutton() ) {
+                boolean containsCaptchaTag = headersList.get(0).contains("@captcha@") || bodyStr.contains("@captcha@");
+                boolean containsTokenTag = headersList.get(0).contains("@captcha-killer-modified@") || bodyStr.contains("@captcha-killer-modified@");
+                boolean shouldHandle = gui.getUsebutton() && (containsCaptchaTag || containsTokenTag || toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER);
 
-                    BurpExtender.stdout.println(getGeneratorName());
-                        try {
-                            if ( (toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER && headersList.contains("@captcha@"))
-                                    ||
-                                    (toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER && headersList.contains("@captcha-killer-modified@"))
-                                    ||
-                                    headersList.contains("@captcha@")
-                                    ||
-                                    new String(body).contains("@captcha@")
-                                    ||
-                                    (  (toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER ) && headersList.contains("@captcha-killer-modified@")  )
-                                    ||
-                                    ((toolFlag == IBurpExtenderCallbacks.TOOL_REPEATER ) && new String(body).contains("@captcha-killer-modified@") && new String(body).contains("@captcha@"))  ) {
-//                        BurpExtender.stdout.println(Arrays.toString(gui.byteImg));
-                                BurpExtender.gui.cap = GUI.identifyCaptchas(gui.getInterfaceURL().getText(), gui.getTaInterfaceTmplReq().getText(), BurpExtender.gui.byteImg, gui.getCbmRuleType().getSelectedIndex(), gui.getRegular().getText());
+                if (shouldHandle) {
+                    stdout.println("[captcha-killer-modified] process request in tool=" + toolFlag + ", refresh->identify flow start");
+                    refreshCaptchaBeforeAttack();
 
-                                BurpExtender.gui.tfcapex.setText(gui.cap);
-                            }
-
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                    try {
+                        if (gui.byteImg != null) {
+                            BurpExtender.gui.cap = GUI.identifyCaptchas(gui.getInterfaceURL().getText(), gui.getTaInterfaceTmplReq().getText(), BurpExtender.gui.byteImg, gui.getCbmRuleType().getSelectedIndex(), gui.getRegular().getText());
+                            BurpExtender.gui.tfcapex.setText(gui.cap);
+                            stdout.println("[captcha-killer-modified] identify success, captcha=" + gui.cap);
+                        } else {
+                            stderr.println("[captcha-killer-modified] identify skipped: captcha image is null after refresh");
                         }
+                    } catch (IOException e) {
+                        stderr.println("[captcha-killer-modified] identify failed: " + e.getMessage());
+                    }
 
-                        int i = 0;
-                        for (String singleheader : headersList) {
-                            headersList.set(i, singleheader.replace("@captcha-killer-modified@", gui.tokenwords));
-                            i++;
-                        }
+                    int i = 0;
+                    for (String singleheader : headersList) {
+                        headersList.set(i, singleheader.replace("@captcha-killer-modified@", gui.tokenwords));
+                        i++;
+                    }
 
-                        byte[] httpmsgresp = helpers.buildHttpMessage(headersList, new String(body).replace("@captcha-killer-modified@", gui.tokenwords).replace("@captcha@", BurpExtender.gui.cap).getBytes());
-                        messageInfo.setRequest(httpmsgresp);
-
+                    byte[] httpmsgresp = helpers.buildHttpMessage(headersList, bodyStr.replace("@captcha-killer-modified@", gui.tokenwords).replace("@captcha@", BurpExtender.gui.cap).getBytes());
+                    messageInfo.setRequest(httpmsgresp);
                     Isreplace = true;
                 }
-
-
-            } else if (!messageIsRequest && Isreplace) {
-
-                GUI.GetCaptchaThread thread = new GUI.GetCaptchaThread(gui.tfURL.getText(), gui.taRequest.getText());
-                thread.start();
-                try {
-                    Thread.sleep(1250);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-//                stdout.println( "response:" + Arrays.toString(BurpExtender.gui.byteImg).length());
-//                stdout.println(Isreplace);
-//                stdout.println("+++++++++++++++++++++++");
+            } else {
                 Isreplace = false;
             }
         }
     }
+
 
     @Override // burp.ITab
     public String getTabCaption() {
