@@ -62,10 +62,12 @@ public class HttpClient {
             header = reqraw;
 
             //将所有\n替换为\r\n,注意\r\n和\n混合情况下的替换。
-            header.replace("\r\n","\n");
-            header.replace("\n","\r\n");
+            header = header.replace("\r\n", "\n");
+            header = header.replace("\n", "\r\n");
 
-            request = header;
+            // GET 数据包末尾强制补全空行，避免服务端解析异常导致卡死
+            header = header.replaceAll("(\\r\\n)+$", "");
+            request = header + "\r\n\r\n";
         }
 
         if(method.equals("POST")){
@@ -79,6 +81,7 @@ public class HttpClient {
         }
         return request;
     }
+
 
 
     public String getHttpService(){
