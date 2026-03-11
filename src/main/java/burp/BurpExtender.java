@@ -56,7 +56,7 @@ public class BurpExtender implements IBurpExtender, ITab, IIntruderPayloadGenera
             stdout.println("[captcha-killer-modified] refreshing captcha before attack request");
             GUI.GetCaptchaThread thread = new GUI.GetCaptchaThread(gui.tfURL.getText(), gui.taRequest.getText(), false);
             thread.start();
-            thread.join(5000);
+            thread.join();
             if (gui.byteImg == null) {
                 stdout.println("[captcha-killer-modified] refresh finished but captcha image is null");
             } else {
@@ -81,8 +81,16 @@ public class BurpExtender implements IBurpExtender, ITab, IIntruderPayloadGenera
                 byte[] body = Arrays.copyOfRange(request, bodyOffset, request.length);
                 String bodyStr = new String(body);
 
-                boolean containsCaptchaTag = headersList.get(0).contains("@captcha@") || bodyStr.contains("@captcha@");
-                boolean containsTokenTag = headersList.get(0).contains("@captcha-killer-modified@") || bodyStr.contains("@captcha-killer-modified@");
+                boolean containsCaptchaTag = bodyStr.contains("@captcha@");
+                boolean containsTokenTag = bodyStr.contains("@captcha-killer-modified@");
+                for (String header : headersList) {
+                    if (header.contains("@captcha@")) {
+                        containsCaptchaTag = true;
+                    }
+                    if (header.contains("@captcha-killer-modified@")) {
+                        containsTokenTag = true;
+                    }
+                }
                 boolean shouldHandle = gui.getUsebutton() && (containsCaptchaTag || containsTokenTag);
 
                 if (shouldHandle) {
