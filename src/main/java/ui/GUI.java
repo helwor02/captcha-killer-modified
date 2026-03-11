@@ -867,20 +867,48 @@ public class GUI {
                 } else {
                     gui.tokenwords = "";
                 }
+                String responseRaw = new String(byteResp);
+                String responseBody = new String(gui.byteRes);
                 if(!words.trim().equals("")){
+                    String extractedImgData = null;
 
-                    gui.byteImg = dataimgToimg(new String(gui.byteRes) ,words);
+                    if(words.contains(".")){
+                        MatchResult matchResult = new JsonMatcher().match(responseRaw, words);
+                        if(matchResult != null && matchResult.getResult() != null){
+                            extractedImgData = matchResult.getResult();
+                        }
+                    }
+
+                    if(extractedImgData != null && !extractedImgData.trim().equals("")){
+                        gui.byteImg = dataimgToimg(extractedImgData);
+                    }else {
+                        try {
+                            gui.byteImg = dataimgToimg(responseBody ,words);
+                        }catch (Exception keywordMatchException){
+                            String autoDetectedImgData = Util.findImageDataInJson(responseBody);
+                            if(autoDetectedImgData != null){
+                                gui.byteImg = dataimgToimg(autoDetectedImgData);
+                            }else {
+                                throw keywordMatchException;
+                            }
+                        }
+                    }
 
                 }else {
                     if (Util.isImage(gui.byteRes)) {
                         BurpExtender.gui.byteImg = gui.byteRes;
-                    } else if (Util.isImage(new String(gui.byteRes))) {
-                        BurpExtender.gui.byteImg = dataimgToimg(new String(gui.byteRes));
+                    } else if (Util.isImage(responseBody)) {
+                        BurpExtender.gui.byteImg = dataimgToimg(responseBody);
                     } else {
-                        gui.lbImage.setIcon(null);
-                        gui.lbImage.setText("获取到的不是图片文件或者未设置关键词！");
-                        gui.lbImage.setForeground(Color.RED);
-                        return;
+                        String autoDetectedImgData = Util.findImageDataInJson(responseBody);
+                        if(autoDetectedImgData != null){
+                            BurpExtender.gui.byteImg = dataimgToimg(autoDetectedImgData);
+                        }else {
+                            gui.lbImage.setIcon(null);
+                            gui.lbImage.setText("获取到的不是图片文件或者未设置关键词！");
+                            gui.lbImage.setForeground(Color.RED);
+                            return;
+                        }
                     }
                 }
                 stdout.println( "get:" + Arrays.toString(BurpExtender.gui.byteImg).length());
@@ -1063,4 +1091,3 @@ public class GUI {
         return MainPanel;
     }
 }
-
