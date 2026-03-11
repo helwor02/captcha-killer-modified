@@ -54,7 +54,7 @@ public class BurpExtender implements IBurpExtender, ITab, IIntruderPayloadGenera
     private void refreshCaptchaBeforeAttack() {
         try {
             stdout.println("[captcha-killer-modified] refreshing captcha before attack request");
-            GUI.GetCaptchaThread thread = new GUI.GetCaptchaThread(gui.tfURL.getText(), gui.taRequest.getText());
+            GUI.GetCaptchaThread thread = new GUI.GetCaptchaThread(gui.tfURL.getText(), gui.taRequest.getText(), false);
             thread.start();
             thread.join(5000);
             if (gui.byteImg == null) {
@@ -83,10 +83,10 @@ public class BurpExtender implements IBurpExtender, ITab, IIntruderPayloadGenera
 
                 boolean containsCaptchaTag = headersList.get(0).contains("@captcha@") || bodyStr.contains("@captcha@");
                 boolean containsTokenTag = headersList.get(0).contains("@captcha-killer-modified@") || bodyStr.contains("@captcha-killer-modified@");
-                boolean shouldHandle = gui.getUsebutton() && (containsCaptchaTag || containsTokenTag || toolFlag == IBurpExtenderCallbacks.TOOL_INTRUDER);
+                boolean shouldHandle = gui.getUsebutton() && (containsCaptchaTag || containsTokenTag);
 
                 if (shouldHandle) {
-                    stdout.println("[captcha-killer-modified] process request in tool=" + toolFlag + ", refresh->identify flow start");
+                    stdout.println("[captcha-killer-modified][AUTO] process request in tool=" + toolFlag + ", refresh->identify flow start");
                     refreshCaptchaBeforeAttack();
 
                     try {

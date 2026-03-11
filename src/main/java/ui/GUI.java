@@ -396,7 +396,7 @@ public class GUI {
 //                    return;
 //                }
 
-                GetCaptchaThread thread = new GetCaptchaThread(tfURL.getText(),taRequest.getText());
+                GetCaptchaThread thread = new GetCaptchaThread(tfURL.getText(),taRequest.getText(),true);
                 thread.start();
             }
         });
@@ -825,10 +825,16 @@ public class GUI {
     public static class GetCaptchaThread extends Thread {
         private String url;
         private String raw;
+        private boolean autoIdentifyAfterFetch;
 
         public GetCaptchaThread(String url,String raw) {
+            this(url, raw, false);
+        }
+
+        public GetCaptchaThread(String url,String raw, boolean autoIdentifyAfterFetch) {
             this.url = url;
             this.raw = raw;
+            this.autoIdentifyAfterFetch = autoIdentifyAfterFetch;
         }
 
         public void run() {
@@ -935,6 +941,21 @@ public class GUI {
                 ImageIcon icon = Util.byte2img(BurpExtender.gui.byteImg);
                 BurpExtender.gui.lbImage.setIcon(icon);
                 BurpExtender.gui.lbImage.setText("");
+
+                boolean identifyConfigReady = !gui.tfInterfaceURL.getText().trim().equals("")
+                        && !gui.taInterfaceTmplReq.getText().trim().equals("")
+                        && !gui.tfRegular.getText().trim().equals("");
+                if(autoIdentifyAfterFetch && identifyConfigReady){
+                    try {
+                        gui.cap = identifyCaptchas(gui.getInterfaceURL().getText(), gui.getTaInterfaceTmplReq().getText(), gui.byteImg, gui.getCbmRuleType().getSelectedIndex(), gui.getRegular().getText());
+                        gui.tfcapex.setText(gui.cap);
+                        stdout.println("[captcha-killer-modified][GET] auto-identify success, result=" + gui.cap);
+                    } catch (Exception identifyException) {
+                        BurpExtender.stderr.println("[captcha-killer-modified][GET] auto-identify failed: " + identifyException.getMessage());
+                    }
+                } else if (autoIdentifyAfterFetch) {
+                    stdout.println("[captcha-killer-modified][GET] skip auto-identify: OCR config incomplete");
+                }
             } catch (Exception e) {
                 BurpExtender.stderr.println(e.getMessage());
             }finally {
