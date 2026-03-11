@@ -1,15 +1,16 @@
 # captcha-killer-modified
 
-本项目继承于：**c0ny1/captcha-killer**  
-原项目地址：<https://github.com/c0ny1/captcha-killer>
-
+本项目继承于：<https://github.com/c0ny1/captcha-killer>
+- 原项目作者：**c0ny1**
+- 修改版维护者：**f0ng**
+- 修改版项目地址：<https://github.com/f0ng/captcha-killer-modified>
 ---
 
 ## 作者信息
 
-- 原项目作者：**c0ny1**
-- 修改版维护者：**f0ng**
-- 修改版项目地址：<https://github.com/f0ng/captcha-killer-modified>
+- 此分支作者：helwor02-codex
+- 所有修改均由codex完成
+- >
 
 ---
 
