@@ -6,6 +6,9 @@ package utils;
 
 import burp.BurpExtender;
 import burp.IResponseInfo;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -18,6 +21,8 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -177,6 +182,83 @@ public class Util {
         return img;
     }
 
+
+
+
+    public static String findImageDataInJson(String jsonText){
+        String[] match = findImageFieldAndDataInJson(jsonText);
+        if(match == null){
+            return null;
+        }
+        return match[1];
+    }
+
+    public static String[] findImageFieldAndDataInJson(String jsonText){
+        if(jsonText == null || jsonText.trim().equals("")){
+            return null;
+        }
+        try {
+            Object root = JSON.parse(jsonText);
+            return findImageDataInObject(root, "");
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    private static String[] findImageDataInObject(Object value, String path){
+        if(value == null){
+            return null;
+        }
+
+        if(value instanceof JSONObject){
+            JSONObject jsonObject = (JSONObject) value;
+            for (Map.Entry<String, Object> entry : jsonObject.entrySet()) {
+                String nextPath = path.equals("") ? entry.getKey() : path + "." + entry.getKey();
+                String[] match = findImageDataInObject(entry.getValue(), nextPath);
+                if(match != null){
+                    return match;
+                }
+            }
+            return null;
+        }
+
+        if(value instanceof JSONArray){
+            JSONArray jsonArray = (JSONArray) value;
+            for (int i = 0; i < jsonArray.size(); i++) {
+                String[] match = findImageDataInObject(jsonArray.get(i), path + "[" + i + "]");
+                if(match != null){
+                    return match;
+                }
+            }
+            return null;
+        }
+
+        if(value instanceof List){
+            List list = (List) value;
+            for (int i = 0; i < list.size(); i++) {
+                String[] match = findImageDataInObject(list.get(i), path + "[" + i + "]");
+                if(match != null){
+                    return match;
+                }
+            }
+            return null;
+        }
+
+        String candidate = String.valueOf(value).trim();
+        if(candidate.equals("")){
+            return null;
+        }
+
+        try {
+            byte[] bytes = dataimgToimg(candidate);
+            if(isImage(bytes)){
+                return new String[]{path, candidate};
+            }
+        }catch (Exception ignored){
+        }
+
+        return null;
+    }
 
     public static boolean isImage(byte[] img){
         // Reference: https://www.cnblogs.com/shihaiming/p/10404700.html
