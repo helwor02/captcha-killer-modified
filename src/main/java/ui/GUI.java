@@ -551,24 +551,16 @@ public class GUI {
                     miBaiduOCR.addActionListener(new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
-                            tfInterfaceURL.setText("http://127.0.0.1:8888");
-                            taInterfaceTmplReq.setText("POST /reg HTTP/1.1\n" +
-                                    "Host: 127.0.0.1:8888\n" +
-                                    "Authorization:Basic f0ngauth\n" +
-                                    "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) " +
-                                    "Gecko/20100101 Firefox/97.0\n" +
-                                    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif," +
-                                    "image/webp,*/*;q=0.8\n" +
-                                    "Accept-Language: zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2\n" +
-                                    "Accept-Encoding: gzip, deflate\n" +
-                                    "Connection: keep-alive\n" +
-                                    "Upgrade-Insecure-Requests: 1\n" +
+                            tfInterfaceURL.setText("http://127.0.0.1:8000");
+                            taInterfaceTmplReq.setText("POST /ocr HTTP/1.1\n" +
+                                    "Content-Length: 794\n" +
                                     "Content-Type: application/x-www-form-urlencoded\n" +
-                                    "Content-Length: 8332\n" +
+                                    "Host: 127.0.0.1:8000\n" +
                                     "\n" +
-                                    "<@BASE64><@IMG_RAW></@IMG_RAW></@BASE64>");
-                            cbmRuleType.setSelectedIndex(Rule.RULE_TYPE_RESPONSE_DATA);
-                            tfRegular.setText("\"words\"\\: \"(.*?)\"\\}");
+                                    "image=<@URLENCODE><@BASE64><@IMG_RAW></@IMG_RAW></@BASE64></@URLENCODE>");
+                            cbmRuleType.setSelectedIndex(Rule.RULE_TYPE_JSON_MATCH);
+                            tfRegular.setText("data");
+                            stdout.println("[captcha-killer-modified] load ddddocr template: URL=http://127.0.0.1:8000, ruleType=json field match, rule=data");
                         }
                     });
                     miCNNCaptcha.addActionListener(new MenuActionManger());
@@ -867,22 +859,76 @@ public class GUI {
                 } else {
                     gui.tokenwords = "";
                 }
-                if(!words.trim().equals("")){
+                gui.byteImg = null;
+                String responseRaw = new String(byteResp);
+                String responseBody = new String(gui.byteRes);
+                String autoDetectedWords = null;
+                stdout.println("[captcha-killer-modified] GetCaptchaThread start, words=" + words + ", responseBodyLength=" + responseBody.length());
 
-                    gui.byteImg = dataimgToimg(new String(gui.byteRes) ,words);
-
-                }else {
-                    if (Util.isImage(gui.byteRes)) {
-                        BurpExtender.gui.byteImg = gui.byteRes;
-                    } else if (Util.isImage(new String(gui.byteRes))) {
-                        BurpExtender.gui.byteImg = dataimgToimg(new String(gui.byteRes));
+                if(words.trim().equals("")){
+                    String[] autoDetected = Util.findImageFieldAndDataInJson(responseBody);
+                    if(autoDetected != null){
+                        autoDetectedWords = autoDetected[0];
+                        gui.tfWords.setText(autoDetectedWords);
+                        gui.byteImg = dataimgToimg(autoDetected[1]);
+                        stdout.println("[captcha-killer-modified] auto-detect success(no keyword), field=" + autoDetectedWords);
                     } else {
-                        gui.lbImage.setIcon(null);
-                        gui.lbImage.setText("获取到的不是图片文件或者未设置关键词！");
-                        gui.lbImage.setForeground(Color.RED);
-                        return;
+                        stdout.println("[captcha-killer-modified] auto-detect(no keyword) not found");
                     }
                 }
+
+                if(gui.byteImg == null && !words.trim().equals("")){
+                    String extractedImgData = null;
+
+                    if(words.contains(".")){
+                        MatchResult matchResult = new JsonMatcher().match(responseRaw, words);
+                        if(matchResult != null && matchResult.getResult() != null){
+                            extractedImgData = matchResult.getResult();
+                            stdout.println("[captcha-killer-modified] json path match success: " + words);
+                        } else {
+                            stdout.println("[captcha-killer-modified] json path match miss: " + words);
+                        }
+                    }
+
+                    if(extractedImgData != null && !extractedImgData.trim().equals("")){
+                        gui.byteImg = dataimgToimg(extractedImgData);
+                        stdout.println("[captcha-killer-modified] keyword extraction by json-path success");
+                    }else {
+                        try {
+                            gui.byteImg = dataimgToimg(responseBody ,words);
+                            stdout.println("[captcha-killer-modified] keyword extraction success: " + words);
+                        }catch (Exception ignored){
+                            stdout.println("[captcha-killer-modified] keyword extraction failed: " + words);
+                        }
+                    }
+                }
+
+                if(gui.byteImg == null){
+                    if (Util.isImage(gui.byteRes)) {
+                        gui.byteImg = gui.byteRes;
+                        stdout.println("[captcha-killer-modified] response body is raw image bytes");
+                    } else if (Util.isImage(responseBody)) {
+                        gui.byteImg = dataimgToimg(responseBody);
+                        stdout.println("[captcha-killer-modified] response body string decodes to image");
+                    } else {
+                        String[] autoDetected = Util.findImageFieldAndDataInJson(responseBody);
+                        if(autoDetected != null){
+                            autoDetectedWords = autoDetected[0];
+                            gui.tfWords.setText(autoDetectedWords);
+                            gui.byteImg = dataimgToimg(autoDetected[1]);
+                            stdout.println("[captcha-killer-modified] fallback auto-detect success, field=" + autoDetectedWords);
+                        }else {
+                            stdout.println("[captcha-killer-modified] all extraction strategies failed");
+                            gui.lbImage.setIcon(null);
+                            gui.lbImage.setText("获取到的不是图片文件或者未设置关键词！");
+                            gui.lbImage.setForeground(Color.RED);
+                            return;
+                        }
+                    }
+                }
+
+                BurpExtender.gui.byteImg = gui.byteImg;
+                stdout.println("[captcha-killer-modified] final image bytes=" + BurpExtender.gui.byteImg.length + ", autoDetectedWords=" + autoDetectedWords);
                 stdout.println( "get:" + Arrays.toString(BurpExtender.gui.byteImg).length());
 //                stdout.println("successsuccesssuccesssuccessend\n");
 
@@ -1063,4 +1109,3 @@ public class GUI {
         return MainPanel;
     }
 }
-
