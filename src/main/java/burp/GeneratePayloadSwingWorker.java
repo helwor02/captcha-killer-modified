@@ -10,43 +10,38 @@ import static burp.BurpExtender.gui;
 public class GeneratePayloadSwingWorker extends SwingWorker {
     @Override
     protected Object doInBackground() throws Exception {
-//        BurpExtender.stdout.println("*****");
         if(!Util.isURL(gui.getInterfaceURL().getText())){
             return "Interface URL format invalid".getBytes();
         }
 
-//        CaptchaEntity cap = new CaptchaEntity();
-//        String cap = null;
+        if(gui.getCaptchaURL() == null || gui.getCaptchaURL().trim().equals("")){
+            return "Captcha URL is empty".getBytes();
+        }
+        if(gui.getCaptchaReqRaw() == null || gui.getCaptchaReqRaw().trim().equals("")){
+            return "Captcha request is empty".getBytes();
+        }
+
         int count = 0;
         try {
-//            byte[] byteImg = Util.requestImage(BurpExtender.gui.getCaptchaURL(),BurpExtender.gui.getCaptchaReqRaw())[0];
-//            byte[] byteResp = Util.requestImage(BurpExtender.gui.getCaptchaURL(),BurpExtender.gui.getCaptchaReqRaw())[1];
+            BurpExtender.stdout.println("[captcha-killer-modified][INTRUDER] payload generation start: refresh->identify");
+            GUI.GetCaptchaThread refreshThread = new GUI.GetCaptchaThread(gui.getCaptchaURL(), gui.getCaptchaReqRaw(), false);
+            refreshThread.start();
+            refreshThread.join();
 
-//            byte[][] bytesResResp = Util.requestImage(gui.getCaptchaURL(), gui.getCaptchaReqRaw());
+            if(gui.byteImg == null){
+                BurpExtender.stderr.println("[captcha-killer-modified][INTRUDER] captcha refresh failed: image is null");
+                return "".getBytes();
+            }
 
-//            byte[] byteImg = bytesResResp[0]; // 只有响应包
+            BurpExtender.gui.cap = GUI.identifyCaptchas(
+                    BurpExtender.gui.getInterfaceURL().getText(),
+                    BurpExtender.gui.getTaInterfaceTmplReq().getText(),
+                    BurpExtender.gui.byteImg,
+                    BurpExtender.gui.getCbmRuleType().getSelectedIndex(),
+                    BurpExtender.gui.getRegular().getText()
+            );
 
-//            BurpExtender.stdout.println(new String(gui.byteImg));
-//            byte[] byteResp = bytesResResp[1]; // 响应头+响应包
-//            byteImg = new String(byteImg).replace("data:image/png;base64,","").getBytes();
-//            String token = gui.tfToken.getText().trim();
-//            if (!token.trim().equals("")) {
-//                gui.tokenwords = extractToken(new String(byteResp) ,token);
-//            }
-            BurpExtender.gui.cap = GUI.identifyCaptchas( BurpExtender.gui.getInterfaceURL().getText(),BurpExtender.gui.getTaInterfaceTmplReq().getText(),BurpExtender.gui.byteImg,BurpExtender.gui.getCbmRuleType().getSelectedIndex(),BurpExtender.gui.getRegular().getText() );
-
-            //遗留问题：burp自带的发包，无法指定超时。如果访问速度过快，这里可能为空。
             while (count < 3 ) {
-//                BurpExtender.stdout.println("error");
-//                BurpExtender.stdout.println(gui.cap);
-//                BurpExtender.gui.cap = GUI.identifyCaptchas( BurpExtender.gui.getInterfaceURL().getText(),BurpExtender.gui.getTaInterfaceTmplReq().getText(),BurpExtender.gui.byteImg,BurpExtender.gui.getCbmRuleType().getSelectedIndex(),BurpExtender.gui.getRegular().getText() ) ;
-//                gui.cap = GUI.identifyCaptchas(gui.getInterfaceURL().getText(), gui.getTaInterfaceTmplReq().getText(), gui.byteImg, gui.getCbmRuleType().getSelectedIndex(), gui.getRegular().getText());
-//                if(cap.getResult() == null || cap.getResult().trim().equals("")){
-//                    Thread.sleep(1000);
-//                    count += 1;
-//                }else{
-//                    break;
-//                }
                 if(gui.cap == null || gui.cap.trim().equals("")){
                     Thread.sleep(1500);
                     count += 1;
@@ -55,16 +50,15 @@ public class GeneratePayloadSwingWorker extends SwingWorker {
                 }
             }
 
-
-//            if(BurpExtender.isShowIntruderResult) {
-//                synchronized (BurpExtender.gui.captcha) {
-//                    int row = BurpExtender.gui.captcha.size();
-//                    BurpExtender.gui.captcha.add(cap);
-//                    BurpExtender.gui.getModel().fireTableRowsInserted(row, row);
-//                }
-//            }
+            if(gui.cap == null){
+                gui.cap = "";
+            }
+            BurpExtender.stdout.println("[captcha-killer-modified][INTRUDER] payload generation done, result=" + gui.cap);
         } catch (Exception e) {
-//            cap(e.getMessage());
+            BurpExtender.stderr.println("[captcha-killer-modified][INTRUDER] payload generation failed: " + e.getMessage());
+            if(gui.cap == null){
+                gui.cap = "";
+            }
         }
         return gui.cap.getBytes();
     }
