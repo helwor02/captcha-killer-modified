@@ -186,18 +186,26 @@ public class Util {
 
 
     public static String findImageDataInJson(String jsonText){
+        String[] match = findImageFieldAndDataInJson(jsonText);
+        if(match == null){
+            return null;
+        }
+        return match[1];
+    }
+
+    public static String[] findImageFieldAndDataInJson(String jsonText){
         if(jsonText == null || jsonText.trim().equals("")){
             return null;
         }
         try {
             Object root = JSON.parse(jsonText);
-            return findImageDataInObject(root);
+            return findImageDataInObject(root, "");
         }catch (Exception e){
             return null;
         }
     }
 
-    private static String findImageDataInObject(Object value){
+    private static String[] findImageDataInObject(Object value, String path){
         if(value == null){
             return null;
         }
@@ -205,7 +213,8 @@ public class Util {
         if(value instanceof JSONObject){
             JSONObject jsonObject = (JSONObject) value;
             for (Map.Entry<String, Object> entry : jsonObject.entrySet()) {
-                String match = findImageDataInObject(entry.getValue());
+                String nextPath = path.equals("") ? entry.getKey() : path + "." + entry.getKey();
+                String[] match = findImageDataInObject(entry.getValue(), nextPath);
                 if(match != null){
                     return match;
                 }
@@ -215,8 +224,8 @@ public class Util {
 
         if(value instanceof JSONArray){
             JSONArray jsonArray = (JSONArray) value;
-            for (Object item : jsonArray) {
-                String match = findImageDataInObject(item);
+            for (int i = 0; i < jsonArray.size(); i++) {
+                String[] match = findImageDataInObject(jsonArray.get(i), path + "[" + i + "]");
                 if(match != null){
                     return match;
                 }
@@ -226,8 +235,8 @@ public class Util {
 
         if(value instanceof List){
             List list = (List) value;
-            for (Object item : list) {
-                String match = findImageDataInObject(item);
+            for (int i = 0; i < list.size(); i++) {
+                String[] match = findImageDataInObject(list.get(i), path + "[" + i + "]");
                 if(match != null){
                     return match;
                 }
@@ -243,7 +252,7 @@ public class Util {
         try {
             byte[] bytes = dataimgToimg(candidate);
             if(isImage(bytes)){
-                return candidate;
+                return new String[]{path, candidate};
             }
         }catch (Exception ignored){
         }

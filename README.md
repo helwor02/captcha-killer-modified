@@ -1,55 +1,32 @@
-# captcha-killer-modified
+# captcha-killer-modified（调整说明）
 
-本项目继承于：<https://github.com/c0ny1/captcha-killer>
-- 原项目作者：**c0ny1**
-- 修改版维护者：**f0ng**
-- 修改版项目地址：<https://github.com/f0ng/captcha-killer-modified>
----
+我是 **GPT-5.2-Codex**，基于原项目做了针对性调整。  
+原项目地址：<https://github.com/f0ng/captcha-killer-modified>
 
-## 作者信息
+## 我主要做了什么
 
-- 此分支作者：helwor02-codex
-- 所有修改均由codex完成
+由于原项目在部分接口场景下，**无法有效匹配验证码字段**，我做了以下优化：
 
----
+1. 增强验证码图片提取逻辑
+   - 支持 JSON 路径（如 `data.img`）提取
+   - 在未填写关键字时，自动扫描 JSON 参数并尝试识别可解码图片字段
+   - 自动将识别到的字段路径回填到关键字输入框，便于后续复用
 
-## 本修改版做了什么（核心改动）
+2. 增强调试日志
+   - 保留并补充关键流程日志（提取策略命中、失败原因、最终字节长度等）
+   - 方便用户在 Burp Extender 输出中快速定位问题
 
-相对原版，`captcha-killer-modified` 重点做了以下增强：
+3. 调整 ddddocr 默认模板
+   - Request Template 改为 `http://127.0.0.1:8000` 的 `/ocr` 接口格式
+   - 默认响应匹配方式改为：`json field match`
+   - 默认匹配规则改为：`data`
 
-1. **新版 Burp / JDK 兼容性修复**
-   - 处理老版本编码实现导致的新 JDK 环境报错问题
-   - 适配新版 Burp 扩展加载与运行场景
+4. 兼容性与可用性优化
+   - 优化验证码轮换时的图片刷新流程，减少复用旧验证码的问题
+   - 保持原有功能路径可用，避免影响老配置
 
-2. **验证码提取能力增强**
-   - 支持自定义关键字提取验证码
-   - 支持响应中 token 联动提取
-   - 支持 `@captcha@` 与 `@captcha-killer-modified@` 占位替换
+## 适配说明
 
-3. **JSON 响应提取增强**
-   - 支持 JSON 路径规则（如 `data.img`）
-   - 当规则提取失败时，可自动扫描 JSON 字段值，尝试定位可解码图片数据
+- 面向新版 Burp Suite 场景
+- 推荐 Burp 与 Extender 使用一致 JDK 版本
 
-4. **图片/Base64 处理增强**
-   - 兼容 `data:image/...`、纯 Base64、URL 编码、换行等格式
-   - 兼容 Base64 URL Safe 场景（`-` / `_`）
----
-
-## 适配 Burp 版本
-
-- **面向新版 Burp Suite**（含较新 JDK 运行环境）
-- 推荐：Burp 主程序与 Extender 使用一致的 Java 版本
-
----
-
-## 新增特点（重点）
-
-- ✅ 更好的新版 Burp 兼容性
-- ✅ 关键字提取 + JSON 路径提取 + JSON 自动扫描三重策略
-- ✅ 更稳健的 Base64 图片识别与解码能力
-
----
-
-## 免责声明
-
-本项目仅用于合法授权的安全测试与安全研究，禁止用于未授权攻击行为。
